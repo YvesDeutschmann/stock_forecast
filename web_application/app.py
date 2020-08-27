@@ -1,14 +1,27 @@
+import os
+from datetime import datetime
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
+import dash_table
 import plotly.express as px
 import pandas as pd
+
+import wrangling_scripts.wrangling as wrangle
+from data.get_data import convert_to_timestamp
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css', dbc.themes.BOOTSTRAP]
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
+# stock symbols to choose from in app
+symbols = {
+    'AAPL': 'Apple', 
+    'GOOG': 'Google', 
+    'MSFT': 'Microsoft', 
+    'AMZN': 'Amazon'}
 
 navbar = dbc.NavbarSimple(
         children=[
@@ -23,59 +36,78 @@ navbar = dbc.NavbarSimple(
         dark=True,
     )
 
-button_group = dbc.Row(
-        [
-            dbc.Col([
-                dbc.ButtonGroup([
-                    dbc.DropdownMenu([
-                        dbc.DropdownMenuItem("Apple"), 
-                        dbc.DropdownMenuItem("Google")],
-                    label="Stock Tickers",
-                    group=False
-                ),
-                dbc.Button("1 Day"),
-                dbc.Button("7 Day"),
-                dbc.Button("14 Day"),
-                dbc.Button("28 Day")
-                ])
-            ], width=12)
-            
-        ], 
-    )
-
-
-progress = html.Div(
-    [
-        dcc.Interval(id="progress-interval", n_intervals=0, interval=500),
-        dbc.Progress(id="progress"),
-    ])
+button_group = html.Div([
+    dcc.Dropdown(
+        options= [{'label': item[1], 'value': item[0]} for item in symbols.items()],
+        id='ticker_selection',
+        placeholder='Select a stock'),
+    dcc.DatePickerRange(
+        id='timeframe_selection',
+        min_date_allowed=datetime(2010, 1, 1),
+        max_date_allowed=datetime(2018, 12, 31),
+        initial_visible_month=datetime.today(),
+        start_date = datetime.today() - pd.Timedelta('5y'),
+        end_date= datetime.today()
+    ),
+    dcc.Dropdown(
+        options= [{'label': '{} Day(s)'.format(i), 'value': i} for i in [1, 7, 14, 28]],
+        id='forecast_selection',
+        placeholder='Select a timeframe to forecast'),
+        dbc.Button('Predict', id='button', color='success', block=True)
+])
 
 app.layout = dbc.Container(
     [
         navbar,
 
-        button_group,
-        html.Div("Placeholder for graph")
-        
-        
-        
-        
+        dbc.Row([
+            dbc.Col([
+                button_group
+            ], width=2),
 
-    # implement progress bar when model is trained
-
-        
-], fluid=True)
+            dbc.Col([
+                html.Div([dcc.Graph(id= 'graph')])          
+            ], width=10)
+        ])
+    ], fluid=True
+)
 
 @app.callback(
-    [Output("progress", "value"), Output("progress", "children")],
-    [Input("progress-interval", "n_intervals")],
+    Output('graph', 'figure'),
+    [
+        Input('ticker_selection', 'value'),
+        Input('timeframe_selection', 'start_date'),
+        Input('timeframe_selection', 'end_date'),
+        Input('forecast_selection', 'value'),
+        Input('button', 'n_clicks')]
 )
-def update_progress(n):
-    # check progress of some background process, in this example we'll just
-    # use n_intervals constrained to be in 0-100
-    progress = min(n % 110, 100)
-    # only add text after 5% progress to ensure text isn't squashed too much
-    return progress, f"{progress} %" if progress >= 5 else ""
+def make_forecast(symbol, start, end, len_forecast, n):
+    if n > 0:
+        # load data
+        start = pd.to_datetime(start)
+        end = pd.to_datetime(end)
+        data = wrangle.load_data(symbols.keys(), start, end)
+
+        print('Transforming and splitting data...')
+        y_train, y_test, = wrangle.prepare_data(data, symbol)
+
+        filename = './models/{}.pkl'.format(symbol.lower())
+        statbuf = os.stat(filename)
+        pickle_creation_date = convert_to_timestamp(statbuf.st_mtime).date()
+        if pickle_creation_date == datetime.today():
+            model = wrangle.load_model(symbol)
+        
+        print('Searching for optimal model parameters...')
+        model = wrangle.fit_optimal_model(y_train)
+        wrangle.save_model(model, symbol)
+
+        print('Making forecast ...')
+        pred = wrangle.predict_prices(model, y_train)
+
+        print('Plotting results...')
+        fig = wrangle.plot_forecast(y_train, y_test, pred, len_forecast)
+
+        return fig
 
 if __name__ == "__main__":
     app.run_server(debug=True)
