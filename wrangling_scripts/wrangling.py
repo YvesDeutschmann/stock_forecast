@@ -3,6 +3,8 @@ import itertools
 import warnings
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
+from statsmodels.tsa.statespace.sarimax import SARIMAXResults, SARIMAX
 import statsmodels.api as sm
 
 from wrangling_scripts.forecasting_metrics import mape, mase
@@ -52,9 +54,11 @@ def fit_optimal_model(y_train):
 
     for param in param_set:
         try:
-            mod = sm.tsa.statespace.SARIMAX(y_train, order=param[:3], trend=param[3], 
-                        enforce_stationarity=False,
-                        enforce_invertibility=False)
+            mod = SARIMAX(
+                y_train, order=param[:3], 
+                trend=param[3], 
+                enforce_stationarity=False,
+                enforce_invertibility=False)
 
             results = mod.fit()
 
@@ -68,11 +72,12 @@ def fit_optimal_model(y_train):
     
     results_df = results_df.sort_values(['aic', 'bic'])
     
-    model = sm.tsa.statespace.SARIMAX(y_train, 
-                        order=results_df.iloc[0].params[:3], 
-                        trend=results_df.iloc[0].params[3],
-                        enforce_stationarity=False,
-                        enforce_invertibility=False)
+    model = SARIMAX(
+        y_train, 
+        order=results_df.iloc[0].params[:3], 
+        trend=results_df.iloc[0].params[3],
+        enforce_stationarity=False,
+        enforce_invertibility=False)
     fitted_model = model.fit()
 
     return fitted_model
@@ -94,6 +99,30 @@ def predict_prices(model, y_train, y_test, len_forecast):
         dynamic=False)
     
     return pred
+
+def plot_ohlc(data, symbol):
+    """
+    Plots the ohlc data for a given symbol and timeframe.
+    Arguments:
+    symbols - list of strings representing the name of a stock symbol that is contained in the ohlc dictionary.
+    Returns:
+    None
+    """
+    
+    df = data[symbol]
+    
+    fig = go.Figure(data=[
+        go.Candlestick(
+            name=symbol,
+            x=df.index,
+            open=df.o,
+            high=df.h,
+            low=df.l,
+            close=df.c)])
+
+    fig.update_layout(
+        xaxis_rangeslider_visible=False,
+        title='OHLC Stock Chart for: {}'.format(symbol))
 
 def evaluate_model(pred, y_test, len_forecast):
     """
@@ -126,7 +155,22 @@ def save_model(model, symbol):
         model.save('../models/{}'.format(filename))
         print('Trained model saved as "{}"'.format(filename))
     except:
-        print('Saving model failed!')    
+        print('Saving model failed!')   
+
+def load_model(symbol):
+    """
+    Loads existing model to make further predictions.
+    Arguments:
+    symbol - name of the stock symbol to load the corresponding model
+    Returns:
+    model - SARIMAXResults object with information of the already fitted model
+    """
+    try:
+        model = SARIMAXResults.load('./models/{}.pkl'.format(symbol.lower()))
+    except:
+        print('Loading model failed!')
+    
+    return model
 
 def main():
     if len(sys.argv) > 2:
