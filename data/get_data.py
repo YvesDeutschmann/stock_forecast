@@ -13,7 +13,7 @@ def convert_to_timestamp(unix):
     """Converts a unix integer into a pandas datetime object."""
     return pd.to_datetime(unix, unit='s')
 
-def load_data(symbols, timedelta='5y'):
+def load_data(symbols, start, end):
     """
     Queries list of stock symbols for their OHLC data.
     Timeframe is from current day back until the desired timeframe (default: 5 years).
@@ -26,8 +26,8 @@ def load_data(symbols, timedelta='5y'):
     """
     ohlc_data = dict()
     # get start & endtime for ohlc data
-    start_time = convert_to_unix(datetime.now() - pd.Timedelta(timedelta))
-    end_time = convert_to_unix(datetime.now())
+    start_time = convert_to_unix(start)
+    end_time = convert_to_unix(end)
     # set resolution for query to 'Daily'
     resolution = 'D'
         
