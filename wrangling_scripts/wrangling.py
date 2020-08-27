@@ -1,14 +1,16 @@
+import os
 import sys
 import itertools
 import warnings
 import pandas as pd
 import numpy as np
+from datetime import datetime
 import plotly.graph_objects as go
 from statsmodels.tsa.statespace.sarimax import SARIMAXResults, SARIMAX
 import statsmodels.api as sm
 
 from wrangling_scripts.forecasting_metrics import mape, mase
-from data.get_data import load_data
+from data.get_data import load_data, convert_to_timestamp, convert_to_unix
 
 
 warnings.filterwarnings('ignore')
@@ -82,25 +84,23 @@ def fit_optimal_model(y_train):
 
     return fitted_model
 
-def predict_prices(model, y_train, y_test, len_forecast):
+def predict_prices(model, y_train, len_forecast=30):
     """Predict values for the next X business days.
     Arguments:
-    y_train - training dataset
-    y_test - test dataset
+    model - trained model to predict values
     len_forecast - integer with number of days to predict
-    visualization - True if visualization of data is desired
     Returns:
-    None
+    pred - SARIMAXResults object with predicted values
     """
 
     pred = model.get_prediction(
-        start=y_train.size + 1, 
-        end=y_train.size + len_forecast, 
+        start= y_train.size + 1, 
+        end= y_train.size + len_forecast, 
         dynamic=False)
     
     return pred
 
-def plot_ohlc(data, symbol):
+def plot_ohlc(df):
     """
     Plots the ohlc data for a given symbol and timeframe.
     Arguments:
@@ -109,20 +109,15 @@ def plot_ohlc(data, symbol):
     None
     """
     
-    df = data[symbol]
-    
     fig = go.Figure(data=[
         go.Candlestick(
-            name=symbol,
             x=df.index,
             open=df.o,
             high=df.h,
             low=df.l,
             close=df.c)])
 
-    fig.update_layout(
-        xaxis_rangeslider_visible=False,
-        title='OHLC Stock Chart for: {}'.format(symbol))
+    return fig
 
 def evaluate_model(pred, y_test, len_forecast):
     """
@@ -141,6 +136,60 @@ def evaluate_model(pred, y_test, len_forecast):
 
     return mape_score, mase_score
 
+def plot_forecast(y_train, y_test, pred, len_forecast):
+    """
+    Plot predicted values vs actual test data.
+
+    Arguments:
+    pred - model object with predicted values
+    pred_ci - dataframe with data for confidence interval
+    len_forecast - integer with number of days to predict
+    Returns:
+    None
+    """
+    # transform values back to original scale
+    preds = pred.predicted_mean**2
+    y_train = y_train **2
+    y_test = y_test **2
+    
+    # calculate evaluation metrics
+    mape_score = mape(y_test.values, preds.values) * 100
+    mase_score = mase(y_test.values, preds.values) * 100
+
+    # find dates for predicted values
+    original_index = y_train.index
+    test_index = y_test.index[:len_forecast]
+    # index_pred = pd.bdate_range(start= original_index[-1] + pd.Timedelta('1d'), periods=len_forecast)
+    # index = original_index.join(index_pred)
+    
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x= y_train.index,
+            y=y_train,
+            name = 'Historical Prices'
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x = test_index,
+            y = preds[:len_forecast],
+            name = 'Predicted Values'
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x = test_index,
+            y = y_test[:len_forecast],
+            name = 'Actual Prices'
+        )
+    )
+    fig.update_layout(
+        xaxis_rangeslider_visible=True,
+        title='MAPE of {}-Day Forecast: {:.2f}%'.format(len_forecast, mape_score))
+    
+    return fig
+
 def save_model(model, symbol):
     """
     Save the model as pickle file to models directory.
@@ -151,6 +200,7 @@ def save_model(model, symbol):
     None
     """
     filename = ''.join([symbol.lower(),'.', 'pkl'])
+    
     try:
         model.save('../models/{}'.format(filename))
         print('Trained model saved as "{}"'.format(filename))
@@ -171,37 +221,3 @@ def load_model(symbol):
         print('Loading model failed!')
     
     return model
-
-def main():
-    if len(sys.argv) > 2:
-        
-        len_forecast = int(sys.argv[1])
-        symbols = list(sys.argv[2:])
-        print('Loading data for symbols: {}'.format(symbols))
-        data = load_data(symbols)
-        
-        for symbol in symbols:
-            print('Transforming and splitting data...')
-            y_train, y_test, = prepare_data(data, symbol ,len_forecast)
-        
-            print('Searching for optimal model parameters...')
-            model = fit_optimal_model(y_train)
-
-            print('Making forecast for {} days.'.format(len_forecast))
-            pred = predict_prices(model, y_train, y_test, len_forecast)
-
-            print('Evaluating model...')
-            mape_score, mase_score = evaluate_model(pred, y_test, len_forecast)
-            print('model performance for {} day(s) forecast:'.format(len_forecast))
-            print('MAPE score: {}'.format(mape_score))
-            print('MASE score: {}'.format(mase_score))
-
-            print('Saving model to models directory as "{}.pkl"'.format(symbol))
-            save_model(model, symbol)
-    else:
-        print('Please provide  a list of stock symbols as the first argument'\
-              ' and the length of the desired forecast as second argument.\n'\
-              'Example: python wrangling.py 30 AAPL GOOG')
-
-if __name__ == '__main__':
-    main()
