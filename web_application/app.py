@@ -108,6 +108,3 @@ def make_forecast(symbol, start, end, len_forecast, n):
         fig = wrangle.plot_forecast(y_train, y_test, pred, len_forecast)
 
         return fig
-
-if __name__ == "__main__":
-    app.run_server(debug=True)
