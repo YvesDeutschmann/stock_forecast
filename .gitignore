@@ -1,2 +1,9 @@
-models/arima.pkl
 wrangling_scripts/__pycache__/forecasting_metrics.cpython-38.pyc
+wrangling_scripts/__pycache__/wrangling.cpython-38.pyc
+web_application/templates/__pycache__/progress.cpython-38.pyc
+web_application/templates/__pycache__/navbar.cpython-38.pyc
+web_application/templates/__pycache__/buttongroup.cpython-38.pyc
+web_application/templates/__pycache__/__init__.cpython-38.pyc
+web_application/__pycache__/app.cpython-38.pyc
+web_application/__pycache__/__init__.cpython-38.pyc
+wrangling_scripts/__pycache__/__init__.cpython-38.pyc
