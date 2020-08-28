@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 
 # Setup client (Insert your own key here)
-finnhub_client = finnhub.Client(api_key="bsrr9nn48v6u62sfl8cg")
+finnhub_client = finnhub.Client(api_key="YourKeyHere")
 
 def convert_to_unix(timestamp):
     """Converts a pandas timestamp to a unix integer."""
