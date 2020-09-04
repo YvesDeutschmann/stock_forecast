@@ -11,6 +11,7 @@ import pandas as pd
 
 import wrangling_scripts.wrangling as wrangle
 from data.get_data import convert_to_timestamp
+from wrangling_scripts.symbol import Symbol
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css', dbc.themes.BOOTSTRAP]
 
@@ -81,30 +82,15 @@ app.layout = dbc.Container(
         Input('forecast_selection', 'value'),
         Input('button', 'n_clicks')]
 )
-def make_forecast(symbol, start, end, len_forecast, n):
+def make_forecast(ticker, start, end, len_forecast, n):
     if n > 0:
         # load data
         start = pd.to_datetime(start)
         end = pd.to_datetime(end)
         data = wrangle.load_data(symbols.keys(), start, end)
 
-        print('Transforming and splitting data...')
-        y_train, y_test, = wrangle.prepare_data(data, symbol)
-
-        filename = './models/{}.pkl'.format(symbol.lower())
-        statbuf = os.stat(filename)
-        pickle_creation_date = convert_to_timestamp(statbuf.st_mtime).date()
-        if pickle_creation_date == datetime.today():
-            model = wrangle.load_model(symbol)
+        symbol = Symbol(data, ticker)
+        symbol.predict_prices(len_forecast)
+        fig = symbol.plot_forecast(len_forecast)
         
-        print('Searching for optimal model parameters...')
-        model = wrangle.fit_optimal_model(y_train)
-        wrangle.save_model(model, symbol)
-
-        print('Making forecast ...')
-        pred = wrangle.predict_prices(model, y_train)
-
-        print('Plotting results...')
-        fig = wrangle.plot_forecast(y_train, y_test, pred, len_forecast)
-
         return fig
