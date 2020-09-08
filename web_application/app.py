@@ -12,17 +12,11 @@ import pandas as pd
 import wrangling_scripts.wrangling as wrangle
 from data.get_data import convert_to_timestamp
 from wrangling_scripts.symbol import Symbol
+from configuration.config import symbols
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css', dbc.themes.BOOTSTRAP]
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-
-# stock symbols to choose from in app
-symbols = {
-    'AAPL': 'Apple', 
-    'GOOG': 'Google', 
-    'MSFT': 'Microsoft', 
-    'AMZN': 'Amazon'}
 
 navbar = dbc.NavbarSimple(
         children=[
@@ -84,12 +78,7 @@ app.layout = dbc.Container(
 )
 def make_forecast(ticker, start, end, len_forecast, n):
     if n > 0:
-        # load data
-        start = pd.to_datetime(start)
-        end = pd.to_datetime(end)
-        data = wrangle.load_data(symbols.keys(), start, end)
-
-        symbol = Symbol(data, ticker)
+        symbol = Symbol(name=ticker)
         symbol.predict_prices(len_forecast)
         fig = symbol.plot_forecast(len_forecast)
         
