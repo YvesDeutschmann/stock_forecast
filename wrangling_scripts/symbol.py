@@ -9,14 +9,16 @@ from scipy.stats import boxcox
 from scipy.special import inv_boxcox
 import plotly.graph_objects as go
 
+from data.get_data import load_data
+
 class Symbol():
     """
     Creates a class for a stock symbol holding all methods and information related to that symbol.
     """
 
-    def __init__(self, data, name):
+    def __init__(self, name):
         self.name = name
-        self.df = data[self.name]
+        self.df = load_data(self.name)
         self.filename = './models/{}.pkl'.format(self.name.lower())
         self.isPickled = True if os.path.isfile(self.filename) else False
         self.preds = None
