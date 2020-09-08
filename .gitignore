@@ -10,9 +10,9 @@ wrangling_scripts/__pycache__/__init__.cpython-38.pyc
 data/__pycache__/get_data.cpython-38.pyc
 data/__pycache__/__init__.cpython-38.pyc
 test.ipynb
-__pycache__/config.cpython-38.pyc
-configuration/__pycache__/__init__.cpython-38.pyc
-configuration/__pycache__/config.cpython-38.pyc
 models/aapl.pkl
 models/goog.pkl
 wrangling_scripts/__pycache__/symbol.cpython-38.pyc
+__pycache__/config.cpython-38.pyc
+configuration/__pycache__/__init__.cpython-38.pyc
+configuration/__pycache__/config.cpython-38.pyc
