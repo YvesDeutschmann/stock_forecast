@@ -1,9 +1,10 @@
+import os
 import finnhub
 import pandas as pd
 from datetime import datetime
-from configuration.config import finnhub_key
 
 # Setup client (Insert your own key here)
+finnhub_key = os.environ.get('finnhub_key')
 finnhub_client = finnhub.Client(api_key=finnhub_key)
 
 def convert_to_unix(timestamp):
